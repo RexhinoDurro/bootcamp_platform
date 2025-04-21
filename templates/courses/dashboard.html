@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block title %}Your Dashboard - JavaScript Bootcamp{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Welcome, {{ user.first_name|default:user.username }}!</h1>
+</div>
+
+<div class="dashboard-stats card">
+    <div class="stat-item">
+        <h3>Courses</h3>
+        <span class="stat-value">{{ courses|length }}</span>
+    </div>
+    <div class="stat-item">
+        <h3>Completed Lessons</h3>
+        <span class="stat-value">{{ user.progress.filter.completed.True|length }}</span>
+    </div>
+    <div class="stat-item">
+        <h3>Hours Spent</h3>
+        <span class="stat-value">0</span>
+    </div>
+</div>
+
+{% if user.is_instructor %}
+<div class="instructor-controls card">
+    <h2>Instructor Tools</h2>
+    <a href="#" class="btn">Create New Course</a>
+    <a href="#" class="btn btn-secondary">View Student Progress</a>
+</div>
+{% endif %}
+
+<div class="my-courses">
+    <h2>{% if user.is_instructor %}My Courses{% else %}Enrolled Courses{% endif %}</h2>
+    
+    <div class="course-grid">
+        {% for course in courses %}
+            <div class="course-card card">
+                {% if course.thumbnail %}
+                    <img src="{{ course.thumbnail.url }}" alt="{{ course.title }}">
+                {% else %}
+                    <div class="placeholder-img">JS</div>
+                {% endif %}
+                <div class="card-body">
+                    <h3>{{ course.title }}</h3>
+                    <p>{{ course.description|truncatewords:15 }}</p>
+                    {% if user.is_instructor %}
+                        <span class="badge {% if course.is_published %}published{% else %}draft{% endif %}">
+                            {% if course.is_published %}Published{% else %}Draft{% endif %}
+                        </span>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <a href="{% url 'course-detail' course.slug %}" class="btn">
+                        {% if user.is_instructor %}Edit Course{% else %}Continue Learning{% endif %}
+                    </a>
+                </div>
+            </div>
+        {% empty %}
+            <div class="empty-state">
+                {% if user.is_instructor %}
+                    <p>You haven't created any courses yet.</p>
+                    <a href="#" class="btn">Create Your First Course</a>
+                {% else %}
+                    <p>You're not enrolled in any courses yet.</p>
+                    <a href="{% url 'course-list' %}" class="btn">Browse Courses</a>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

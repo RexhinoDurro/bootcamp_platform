@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}JavaScript Bootcamp - Learn Modern JavaScript{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div class="card">
+        <h1>Master JavaScript Development</h1>
+        <p>Learn modern JavaScript from experts through interactive exercises, projects, and real-world applications.</p>
+        <div class="cta-buttons">
+            <a href="{% url 'course-list' %}" class="btn">Browse Courses</a>
+            {% if not user.is_authenticated %}
+                <a href="{% url 'register' %}" class="btn btn-secondary">Join Now</a>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<section class="featured-courses">
+    <h2>Featured Courses</h2>
+    <div class="course-grid">
+        {% for course in featured_courses %}
+            <div class="course-card card">
+                {% if course.thumbnail %}
+                    <img src="{{ course.thumbnail.url }}" alt="{{ course.title }}">
+                {% else %}
+                    <div class="placeholder-img">JS</div>
+                {% endif %}
+                <div class="card-body">
+                    <h3>{{ course.title }}</h3>
+                    <p>{{ course.description|truncatewords:20 }}</p>
+                </div>
+                <div class="card-footer">
+                    <a href="{% url 'course-detail' course.slug %}" class="btn">Learn More</a>
+                </div>
+            </div>
+        {% empty %}
+            <p>No courses available yet. Check back soon!</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="features card">
+    <h2>Why Learn With Us</h2>
+    <div class="features-grid">
+        <div class="feature">
+            <h3>Interactive Learning</h3>
+            <p>Code directly in your browser with our interactive exercises and get immediate feedback.</p>
+        </div>
+        <div class="feature">
+            <h3>Expert Instructors</h3>
+            <p>Learn from experienced developers who are passionate about teaching.</p>
+        </div>
+        <div class="feature">
+            <h3>Real-world Projects</h3>
+            <p>Apply your skills on practical projects that simulate real-world scenarios.</p>
+        </div>
+        <div class="feature">
+            <h3>Community Support</h3>
+            <p>Join a community of learners and instructors to get help when you need it.</p>
+        </div>
+    </div>
+</section>
+{% endblock %}

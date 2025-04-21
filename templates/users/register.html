@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block title %}Log In - JavaScript Bootcamp{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card card">
+        <h1>Log In</h1>
+        
+        <div class="message-container">
+            <!-- Messages will be displayed here via JavaScript -->
+        </div>
+        
+        <form id="login-form" class="auth-form">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" class="form-control" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" class="form-control" required>
+            </div>
+            
+            <button type="submit" class="btn">Log In</button>
+        </form>
+        
+        <div class="auth-links">
+            <p>Don't have an account? <a href="{% url 'register' %}">Register</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const loginForm = document.getElementById('login-form');
+    const messageContainer = document.querySelector('.message-container');
+    
+    loginForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        
+        // Call the login API
+        fetch('/api/users/login/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                username: username,
+                password: password
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.token) {
+                // Store the token in localStorage
+                localStorage.setItem('authToken', data.token);
+                
+                // Redirect to dashboard
+                window.location.href = '/dashboard/';
+            } else {
+                // Show error message
+                messageContainer.innerHTML = `<div class="error-message">${data.error || 'Login failed. Please try again.'}</div>`;
+            }
+        })
+        .catch(error => {
+            messageContainer.innerHTML = '<div class="error-message">An error occurred. Please try again.</div>';
+            console.error('Error:', error);
+        });
+    });
+});
+</script>
+{% endblock %}

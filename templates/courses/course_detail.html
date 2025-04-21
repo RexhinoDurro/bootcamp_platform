@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}JavaScript Courses - JavaScript Bootcamp{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>JavaScript Courses</h1>
+    <p>Explore our collection of comprehensive JavaScript courses</p>
+</div>
+
+<div class="filter-controls">
+    <form action="" method="get" class="search-form">
+        <input type="text" name="search" placeholder="Search courses..." class="form-control">
+        <button type="submit" class="btn">Search</button>
+    </form>
+</div>
+
+<div class="course-grid">
+    {% for course in courses %}
+        <div class="course-card card">
+            {% if course.thumbnail %}
+                <img src="{{ course.thumbnail.url }}" alt="{{ course.title }}">
+            {% else %}
+                <div class="placeholder-img">JS</div>
+            {% endif %}
+            <div class="card-body">
+                <h3>{{ course.title }}</h3>
+                <p class="instructor">By {{ course.instructor.get_full_name|default:course.instructor.username }}</p>
+                <p>{{ course.description|truncatewords:20 }}</p>
+            </div>
+            <div class="card-footer">
+                <a href="{% url 'course-detail' course.slug %}" class="btn">View Course</a>
+            </div>
+        </div>
+    {% empty %}
+        <div class="empty-state card">
+            <p>No courses available yet. Please check back soon!</p>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}

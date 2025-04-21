@@ -1,10 +1,9 @@
 # courses/urls.py
 from django.urls import path
 from rest_framework.routers import DefaultRouter
-# from . import views
+from . import views
 
 router = DefaultRouter()
-# We'll uncomment this later when you implement the viewset
-# router.register('', views.CourseViewSet, basename='course')
+router.register('', views.CourseViewSet, basename='course')
 
 urlpatterns = router.urls
