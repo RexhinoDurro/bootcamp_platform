@@ -1,0 +1,277 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Modules - {{ course.title }} - JavaScript Bootcamp{% endblock %}
+
+{% block content %}
+<div class="module-management">
+    <div class="management-header">
+        <h1>Manage Modules: {{ course.title }}</h1>
+        <div class="header-actions">
+            <a href="/dashboard/instructor/" class="btn btn-secondary">Back to Dashboard</a>
+            <button id="add-module-btn" class="btn">Add New Module</button>
+        </div>
+    </div>
+    
+    <div class="modules-container">
+        <div id="modules-list" class="modules-list">
+            {% for module in course.modules.all %}
+                <div class="module-item card" data-module-id="{{ module.id }}">
+                    <div class="module-header">
+                        <h3>{{ module.title }}</h3>
+                        <div class="module-actions">
+                            <button class="btn btn-edit">Edit</button>
+                            <button class="btn btn-delete">Delete</button>
+                            <button class="btn btn-lessons">Manage Lessons</button>
+                        </div>
+                    </div>
+                    <div class="module-content">
+                        <p>{{ module.description }}</p>
+                        <p class="module-meta">
+                            <span class="lesson-count">{{ module.lessons.count }} lessons</span>
+                            <span class="module-order">Order: {{ module.order }}</span>
+                        </p>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="empty-state card" id="empty-state">
+                    <p>No modules have been added to this course yet.</p>
+                    <button id="create-first-module" class="btn">Create First Module</button>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Module Form Modal -->
+    <div id="module-modal" class="modal" style="display: none;">
+        <div class="modal-content card">
+            <div class="modal-header">
+                <h2 id="modal-title">Add New Module</h2>
+                <button id="close-modal" class="close-button">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="module-form">
+                    <input type="hidden" id="module-id" name="id">
+                    <div class="form-group">
+                        <label for="module-title">Module Title</label>
+                        <input type="text" id="module-title" name="title" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="module-description">Description</label>
+                        <textarea id="module-description" name="description" class="form-control" rows="4"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="module-order">Order</label>
+                        <input type="number" id="module-order" name="order" class="form-control" min="0" value="0">
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn" id="save-module">Save Module</button>
+                        <button type="button" class="btn btn-secondary" id="cancel-module">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="modal" style="display: none;">
+        <div class="modal-content card">
+            <div class="modal-header">
+                <h2>Confirm Deletion</h2>
+                <button id="close-delete-modal" class="close-button">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this module? This will delete all lessons within the module and cannot be undone.</p>
+                <div class="form-actions">
+                    <button id="confirm-delete" class="btn btn-danger">Delete Module</button>
+                    <button id="cancel-delete" class="btn btn-secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const addModuleBtn = document.getElementById('add-module-btn');
+    const createFirstModule = document.getElementById('create-first-module');
+    const moduleModal = document.getElementById('module-modal');
+    const deleteModal = document.getElementById('delete-modal');
+    const moduleForm = document.getElementById('module-form');
+    const closeModal = document.getElementById('close-modal');
+    const cancelModule = document.getElementById('cancel-module');
+    const closeDeleteModal = document.getElementById('close-delete-modal');
+    const cancelDelete = document.getElementById('cancel-delete');
+    const modulesList = document.getElementById('modules-list');
+    const emptyState = document.getElementById('empty-state');
+    
+    let currentModuleId = null;
+    
+    // Show modal for new module
+    function showAddModal() {
+        document.getElementById('modal-title').textContent = 'Add New Module';
+        document.getElementById('module-id').value = '';
+        document.getElementById('module-title').value = '';
+        document.getElementById('module-description').value = '';
+        document.getElementById('module-order').value = '{{ course.modules.count }}';
+        moduleModal.style.display = 'block';
+    }
+    
+    // Show modal for editing module
+    function showEditModal(moduleId, title, description, order) {
+        document.getElementById('modal-title').textContent = 'Edit Module';
+        document.getElementById('module-id').value = moduleId;
+        document.getElementById('module-title').value = title;
+        document.getElementById('module-description').value = description;
+        document.getElementById('module-order').value = order;
+        moduleModal.style.display = 'block';
+    }
+    
+    // Hide module modal
+    function hideModuleModal() {
+        moduleModal.style.display = 'none';
+    }
+    
+    // Show delete confirmation modal
+    function showDeleteModal(moduleId) {
+        currentModuleId = moduleId;
+        deleteModal.style.display = 'block';
+    }
+    
+    // Hide delete modal
+    function hideDeleteModal() {
+        deleteModal.style.display = 'none';
+        currentModuleId = null;
+    }
+    
+    // Event listeners for showing modals
+    if (addModuleBtn) {
+        addModuleBtn.addEventListener('click', showAddModal);
+    }
+    
+    if (createFirstModule) {
+        createFirstModule.addEventListener('click', showAddModal);
+    }
+    
+    // Event listeners for closing modals
+    if (closeModal) {
+        closeModal.addEventListener('click', hideModuleModal);
+    }
+    
+    if (cancelModule) {
+        cancelModule.addEventListener('click', function(e) {
+            e.preventDefault();
+            hideModuleModal();
+        });
+    }
+    
+    if (closeDeleteModal) {
+        closeDeleteModal.addEventListener('click', hideDeleteModal);
+    }
+    
+    if (cancelDelete) {
+        cancelDelete.addEventListener('click', hideDeleteModal);
+    }
+    
+    // Handle module form submission
+    if (moduleForm) {
+        moduleForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const moduleId = document.getElementById('module-id').value;
+            const title = document.getElementById('module-title').value;
+            const description = document.getElementById('module-description').value;
+            const order = document.getElementById('module-order').value;
+            
+            // Determine endpoint and method
+            const courseId = '{{ course.id }}';
+            const endpoint = moduleId ? 
+                `/api/courses/${courseId}/modules/${moduleId}/` : 
+                `/api/courses/${courseId}/modules/`;
+            const method = moduleId ? 'PUT' : 'POST';
+            
+            // Make API call
+            Auth.apiRequest(endpoint, method, {
+                title: title,
+                description: description,
+                order: order,
+                course: courseId
+            })
+            .then(response => {
+                if (response.success) {
+                    // Reload the page to show updated modules
+                    window.location.reload();
+                } else {
+                    // Show error message
+                    alert('Error: ' + (response.error || 'Failed to save module'));
+                }
+            });
+        });
+    }
+    
+    // Handle confirm delete button
+    document.getElementById('confirm-delete').addEventListener('click', function() {
+        if (currentModuleId) {
+            const courseId = '{{ course.id }}';
+            
+            // Make API call to delete module
+            Auth.apiRequest(`/api/courses/${courseId}/modules/${currentModuleId}/`, 'DELETE')
+            .then(response => {
+                if (response.success) {
+                    // Remove the module from the DOM
+                    const moduleElement = document.querySelector(`[data-module-id="${currentModuleId}"]`);
+                    if (moduleElement) {
+                        moduleElement.remove();
+                    }
+                    
+                    // Show empty state if no modules left
+                    if (modulesList.children.length === 0) {
+                        modulesList.appendChild(emptyState);
+                        emptyState.style.display = 'block';
+                    }
+                    
+                    // Hide the modal
+                    hideDeleteModal();
+                } else {
+                    // Show error message
+                    alert('Error: ' + (response.error || 'Failed to delete module'));
+                    hideDeleteModal();
+                }
+            });
+        }
+    });
+    
+    // Delegate event listeners for module actions
+    modulesList.addEventListener('click', function(e) {
+        // Edit button
+        if (e.target.classList.contains('btn-edit')) {
+            const moduleItem = e.target.closest('.module-item');
+            const moduleId = moduleItem.getAttribute('data-module-id');
+            const title = moduleItem.querySelector('h3').textContent;
+            const description = moduleItem.querySelector('.module-content p').textContent;
+            const orderText = moduleItem.querySelector('.module-order').textContent;
+            const order = orderText.split(':')[1].trim();
+            
+            showEditModal(moduleId, title, description, order);
+        }
+        
+        // Delete button
+        if (e.target.classList.contains('btn-delete')) {
+            const moduleItem = e.target.closest('.module-item');
+            const moduleId = moduleItem.getAttribute('data-module-id');
+            
+            showDeleteModal(moduleId);
+        }
+        
+        // Manage lessons button
+        if (e.target.classList.contains('btn-lessons')) {
+            const moduleItem = e.target.closest('.module-item');
+            const moduleId = moduleItem.getAttribute('data-module-id');
+            
+            window.location.href = `/courses/modules/${moduleId}/lessons/`;
+        }
+    });
+});
+</script>
+{% endblock %}

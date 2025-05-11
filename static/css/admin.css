@@ -1,0 +1,175 @@
+/* Admin-specific styles */
+
+/* Dashboard */
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 1rem;
+}
+
+.stat-item h3 {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  color: var(--secondary-color);
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+.instructor-controls {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+}
+
+.instructor-controls h2 {
+  margin-bottom: 1rem;
+}
+
+.instructor-controls .btn {
+  margin-right: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Course Management */
+.course-list .course-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 1.5rem;
+}
+
+.course-list .course-details {
+  flex: 1;
+}
+
+.course-list .course-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.course-meta {
+  display: flex;
+  gap: 1rem;
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.badge.published {
+  background-color: #28a745;
+  color: white;
+}
+
+.badge.draft {
+  background-color: #6c757d;
+  color: white;
+}
+
+/* Course Form */
+.course-form {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.form-header {
+  margin-bottom: 2rem;
+}
+
+.current-thumbnail {
+  margin: 1rem 0;
+}
+
+.thumbnail-preview {
+  max-width: 300px;
+  max-height: 200px;
+  border-radius: 4px;
+}
+
+.form-actions {
+  margin-top: 2rem;
+  display: flex;
+  gap: 1rem;
+}
+
+/* Module Management */
+.management-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.modules-list .module-item {
+  margin-bottom: 1rem;
+}
+
+.module-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.module-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.module-meta {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+/* Modal Styles */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  width: 100%;
+  max-width: 600px;
+  max-height: 80vh;
+}

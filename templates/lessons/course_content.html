@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ course.title }} - Learning Dashboard - JavaScript Bootcamp{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/learning.css">
+{% endblock %}
+
+{% block content %}
+<div class="learning-dashboard">
+    <div class="dashboard-header">
+        <h1>{{ course.title }}</h1>
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress" style="width: {{ progress_percentage }}%"></div>
+            </div>
+            <span class="progress-text">{{ progress_percentage }}% Complete</span>
+        </div>
+    </div>
+    
+    <div class="course-container">
+        <div class="modules-sidebar">
+            <h2>Course Content</h2>
+            
+            {% for module in modules %}
+                <div class="module-item">
+                    <div class="module-header">
+                        <h3>{{ module.title }}</h3>
+                        <span class="lesson-count">{{ module.lessons.count }} lessons</span>
+                    </div>
+                    
+                    <ul class="lessons-list">
+                        {% for lesson in module.lessons.all %}
+                            <li class="lesson-item {% if lesson.id in user_progress %}completed{% endif %}">
+                                <a href="{% url 'lesson-detail' lesson.id %}">
+                                    <span class="lesson-type {{ lesson.lesson_type }}">{{ lesson.lesson_type|title }}</span>
+                                    <span class="lesson-title">{{ lesson.title }}</span>
+                                    {% if lesson.id in user_progress %}
+                                        <span class="completion-badge">✓</span>
+                                    {% endif %}
+                                </a>
+                            </li>
+                        {% empty %}
+                            <li class="no-lessons">No lessons available yet</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% empty %}
+                <div class="empty-state">
+                    <p>No modules available yet for this course.</p>
+                </div>
+            {% endfor %}
+        </div>
+        
+        <div class="course-details card">
+            <div class="course-info">
+                <h2>About This Course</h2>
+                
+                {% if course.thumbnail %}
+                    <img src="{{ course.thumbnail.url }}" alt="{{ course.title }}" class="course-thumbnail">
+                {% endif %}
+                
+                <div class="course-description">
+                    <p>{{ course.description }}</p>
+                </div>
+                
+                <div class="instructor-info">
+                    <h3>Your Instructor</h3>
+                    <div class="instructor-profile">
+                        {% if course.instructor.profile_picture %}
+                            <img src="{{ course.instructor.profile_picture.url }}" alt="{{ course.instructor.get_full_name }}" class="instructor-avatar">
+                        {% else %}
+                            <div class="instructor-avatar-placeholder">{{ course.instructor.first_name|first }}{{ course.instructor.last_name|first }}</div>
+                        {% endif %}
+                        <div class="instructor-details">
+                            <h4>{{ course.instructor.get_full_name|default:course.instructor.username }}</h4>
+                            <p>{{ course.instructor.bio|truncatewords:30 }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="course-cta">
+                {% if modules.0.lessons.all.0 %}
+                    <a href="{% url 'lesson-detail' modules.0.lessons.all.0.id %}" class="btn">Start Learning</a>
+                {% else %}
+                    <p>No lessons available yet. Check back soon!</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

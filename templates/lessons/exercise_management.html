@@ -1,0 +1,490 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Exercises - {{ lesson.title }} - JavaScript Bootcamp{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/admin.css">
+{% endblock %}
+
+{% block content %}
+<div class="exercise-management">
+    <div class="management-header">
+        <div class="header-info">
+            <h1>Manage Exercises</h1>
+            <p class="breadcrumb">
+                <a href="/dashboard/instructor/">Dashboard</a> &gt;
+                <a href="/courses/modules/{{ lesson.module.course.id }}/">{{ lesson.module.course.title }}</a> &gt;
+                <a href="/courses/modules/{{ lesson.module.id }}/lessons/">{{ lesson.module.title }}</a> &gt;
+                {{ lesson.title }}
+            </p>
+        </div>
+        <div class="header-actions">
+            <button id="add-exercise-btn" class="btn">Add New Exercise</button>
+            <a href="/courses/modules/{{ lesson.module.id }}/lessons/" class="btn btn-secondary">Back to Lessons</a>
+        </div>
+    </div>
+    
+    <div class="exercises-container">
+        <div id="exercises-list" class="exercises-list">
+            {% for exercise in lesson.exercises.all %}
+                <div class="exercise-item card" data-exercise-id="{{ exercise.id }}">
+                    <div class="exercise-header">
+                        <h3>{{ exercise.title }}</h3>
+                        <div class="exercise-actions">
+                            <button class="btn btn-edit">Edit</button>
+                            <button class="btn btn-delete">Delete</button>
+                            <button class="btn btn-preview">Preview</button>
+                        </div>
+                    </div>
+                    <div class="exercise-content">
+                        <p>{{ exercise.description|truncatewords:30 }}</p>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="empty-state card" id="empty-state">
+                    <p>No exercises have been added to this lesson yet.</p>
+                    <button id="create-first-exercise" class="btn">Create First Exercise</button>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Exercise Form Modal -->
+    <div id="exercise-modal" class="modal" style="display: none;">
+        <div class="modal-content card">
+            <div class="modal-header">
+                <h2 id="modal-title">Add New Exercise</h2>
+                <button id="close-modal" class="close-button">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="exercise-form">
+                    <input type="hidden" id="exercise-id" name="id">
+                    <div class="form-group">
+                        <label for="exercise-title">Exercise Title</label>
+                        <input type="text" id="exercise-title" name="title" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="exercise-description">Description</label>
+                        <textarea id="exercise-description" name="description" class="form-control" rows="4" required></textarea>
+                        <small class="form-text">Explain what the student needs to do.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="exercise-initial-code">Initial Code</label>
+                        <div class="code-editor">
+                            <div class="editor-header">JavaScript</div>
+                            <textarea id="exercise-initial-code" name="initial_code" class="code-input" rows="6"></textarea>
+                        </div>
+                        <small class="form-text">This is the starter code the student will see.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="exercise-solution-code">Solution Code</label>
+                        <div class="code-editor">
+                            <div class="editor-header">JavaScript</div>
+                            <textarea id="exercise-solution-code" name="solution_code" class="code-input" rows="6"></textarea>
+                        </div>
+                        <small class="form-text">This is the solution code (not shown to students).</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="exercise-test-code">Test Code</label>
+                        <div class="code-editor">
+                            <div class="editor-header">JavaScript</div>
+                            <textarea id="exercise-test-code" name="test_code" class="code-input" rows="6"></textarea>
+                        </div>
+                        <small class="form-text">This code will be used to test the student's solution.</small>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn" id="save-exercise">Save Exercise</button>
+                        <button type="button" class="btn btn-secondary" id="cancel-exercise">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="modal" style="display: none;">
+        <div class="modal-content card">
+            <div class="modal-header">
+                <h2>Confirm Deletion</h2>
+                <button id="close-delete-modal" class="close-button">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this exercise? This action cannot be undone.</p>
+                <div class="form-actions">
+                    <button id="confirm-delete" class="btn btn-danger">Delete Exercise</button>
+                    <button id="cancel-delete" class="btn btn-secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Exercise Preview Modal -->
+    <div id="preview-modal" class="modal" style="display: none;">
+        <div class="modal-content card">
+            <div class="modal-header">
+                <h2>Exercise Preview</h2>
+                <button id="close-preview-modal" class="close-button">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="exercise-preview">
+                    <h3 id="preview-title"></h3>
+                    <p id="preview-description"></p>
+                    
+                    <div class="code-editor">
+                        <div class="editor-header">JavaScript</div>
+                        <textarea id="preview-code" class="code-input" rows="8"></textarea>
+                    </div>
+                    
+                    <div class="preview-controls">
+                        <button id="preview-run" class="btn">Run Code</button>
+                        <button id="preview-check" class="btn btn-secondary">Check Solution</button>
+                    </div>
+                    
+                    <div class="output-console">
+                        <div class="console-header">Console Output</div>
+                        <div id="preview-output" class="console-output"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const addExerciseBtn = document.getElementById('add-exercise-btn');
+    const createFirstExercise = document.getElementById('create-first-exercise');
+    const exerciseModal = document.getElementById('exercise-modal');
+    const deleteModal = document.getElementById('delete-modal');
+    const previewModal = document.getElementById('preview-modal');
+    const exerciseForm = document.getElementById('exercise-form');
+    const closeModal = document.getElementById('close-modal');
+    const cancelExercise = document.getElementById('cancel-exercise');
+    const closeDeleteModal = document.getElementById('close-delete-modal');
+    const cancelDelete = document.getElementById('cancel-delete');
+    const closePreviewModal = document.getElementById('close-preview-modal');
+    const exercisesList = document.getElementById('exercises-list');
+    const emptyState = document.getElementById('empty-state');
+    
+    let currentExerciseId = null;
+    
+    // Show modal for new exercise
+    function showAddModal() {
+        document.getElementById('modal-title').textContent = 'Add New Exercise';
+        document.getElementById('exercise-id').value = '';
+        document.getElementById('exercise-title').value = '';
+        document.getElementById('exercise-description').value = '';
+        document.getElementById('exercise-initial-code').value = '// Your code here\n\n';
+        document.getElementById('exercise-solution-code').value = '// Solution code\n\n';
+        document.getElementById('exercise-test-code').value = '// Test code\n// Example:\n// function testSolution() {\n//   return userSolution() === expectedResult;\n// }';
+        exerciseModal.style.display = 'block';
+    }
+    
+    // Show modal for editing exercise
+    function showEditModal(exercise) {
+        document.getElementById('modal-title').textContent = 'Edit Exercise';
+        document.getElementById('exercise-id').value = exercise.id;
+        document.getElementById('exercise-title').value = exercise.title;
+        document.getElementById('exercise-description').value = exercise.description;
+        document.getElementById('exercise-initial-code').value = exercise.initial_code;
+        document.getElementById('exercise-solution-code').value = exercise.solution_code;
+        document.getElementById('exercise-test-code').value = exercise.test_code;
+        exerciseModal.style.display = 'block';
+    }
+    
+    // Hide exercise modal
+    function hideExerciseModal() {
+        exerciseModal.style.display = 'none';
+    }
+    
+    // Show delete confirmation modal
+    function showDeleteModal(exerciseId) {
+        currentExerciseId = exerciseId;
+        deleteModal.style.display = 'block';
+    }
+    
+    // Hide delete modal
+    function hideDeleteModal() {
+        deleteModal.style.display = 'none';
+        currentExerciseId = null;
+    }
+    
+    // Show preview modal
+    function showPreviewModal(exercise) {
+        document.getElementById('preview-title').textContent = exercise.title;
+        document.getElementById('preview-description').textContent = exercise.description;
+        document.getElementById('preview-code').value = exercise.initial_code;
+        document.getElementById('preview-output').innerHTML = '';
+        previewModal.style.display = 'block';
+        
+        // Set up preview run button
+        document.getElementById('preview-run').onclick = function() {
+            try {
+                // Clear previous output
+                document.getElementById('preview-output').innerHTML = '';
+                
+                // Store original console.log
+                const originalConsoleLog = console.log;
+                
+                // Override console.log to capture output
+                console.log = function() {
+                    const output = Array.from(arguments).join(' ');
+                    const outputLine = document.createElement('div');
+                    outputLine.textContent = output;
+                    document.getElementById('preview-output').appendChild(outputLine);
+                };
+                
+                // Run the code
+                eval(document.getElementById('preview-code').value);
+                
+                // Restore original console.log
+                console.log = originalConsoleLog;
+            } catch (error) {
+                const errorLine = document.createElement('div');
+                errorLine.classList.add('error');
+                errorLine.textContent = error.toString();
+                document.getElementById('preview-output').appendChild(errorLine);
+            }
+        };
+        
+        // Set up preview check button
+        document.getElementById('preview-check').onclick = function() {
+            try {
+                // Clear previous output
+                document.getElementById('preview-output').innerHTML = '';
+                
+                // Store user's code
+                const userCode = document.getElementById('preview-code').value;
+                
+                // Create a function to evaluate the code with test
+                const testFunction = new Function(
+                    'userCode',
+                    `
+                    try {
+                        // Execute user code
+                        eval(userCode);
+                        
+                        // Execute test code
+                        ${exercise.test_code}
+                        
+                        // Return test results
+                        return testSolution();
+                    } catch (error) {
+                        return { error: error.toString() };
+                    }
+                    `
+                );
+                
+                // Run the test
+                const result = testFunction(userCode);
+                
+                if (result === true) {
+                    const successLine = document.createElement('div');
+                    successLine.classList.add('success');
+                    successLine.textContent = 'Great job! Your solution passes the tests!';
+                    document.getElementById('preview-output').appendChild(successLine);
+                } else if (result && result.error) {
+                    const errorLine = document.createElement('div');
+                    errorLine.classList.add('error');
+                    errorLine.textContent = result.error;
+                    document.getElementById('preview-output').appendChild(errorLine);
+                } else {
+                    const errorLine = document.createElement('div');
+                    errorLine.classList.add('error');
+                    errorLine.textContent = 'Your solution does not pass the tests. Try again!';
+                    document.getElementById('preview-output').appendChild(errorLine);
+                }
+            } catch (error) {
+                const errorLine = document.createElement('div');
+                errorLine.classList.add('error');
+                errorLine.textContent = error.toString();
+                document.getElementById('preview-output').appendChild(errorLine);
+            }
+        };
+    }
+    
+    // Hide preview modal
+    function hidePreviewModal() {
+        previewModal.style.display = 'none';
+    }
+    
+    // Event listeners for showing modals
+    if (addExerciseBtn) {
+        addExerciseBtn.addEventListener('click', showAddModal);
+    }
+    
+    if (createFirstExercise) {
+        createFirstExercise.addEventListener('click', showAddModal);
+    }
+    
+    // Event listeners for closing modals
+    if (closeModal) {
+        closeModal.addEventListener('click', hideExerciseModal);
+    }
+    
+    if (cancelExercise) {
+        cancelExercise.addEventListener('click', function(e) {
+            e.preventDefault();
+            hideExerciseModal();
+        });
+    }
+    
+    if (closeDeleteModal) {
+        closeDeleteModal.addEventListener('click', hideDeleteModal);
+    }
+    
+    if (cancelDelete) {
+        cancelDelete.addEventListener('click', hideDeleteModal);
+    }
+    
+    if (closePreviewModal) {
+        closePreviewModal.addEventListener('click', hidePreviewModal);
+    }
+    
+    // Handle exercise form submission
+    if (exerciseForm) {
+        exerciseForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const exerciseId = document.getElementById('exercise-id').value;
+            const title = document.getElementById('exercise-title').value;
+            const description = document.getElementById('exercise-description').value;
+            const initialCode = document.getElementById('exercise-initial-code').value;
+            const solutionCode = document.getElementById('exercise-solution-code').value;
+            const testCode = document.getElementById('exercise-test-code').value;
+            
+            // Determine endpoint and method
+            const lessonId = '{{ lesson.id }}';
+            const endpoint = exerciseId ? 
+                `/api/lessons/exercise/${exerciseId}/` : 
+                `/api/lessons/exercise/`;
+            const method = exerciseId ? 'PUT' : 'POST';
+            
+            // Make API call
+            fetch(endpoint, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Token ${Auth.getToken()}`
+                },
+                body: JSON.stringify({
+                    title: title,
+                    description: description,
+                    initial_code: initialCode,
+                    solution_code: solutionCode,
+                    test_code: testCode,
+                    lesson: lessonId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Reload the page to show updated exercises
+                window.location.reload();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                // Show error message
+                alert('An error occurred while saving the exercise. Please try again.');
+            });
+        });
+    }
+    
+    // Handle confirm delete button
+    document.getElementById('confirm-delete').addEventListener('click', function() {
+        if (currentExerciseId) {
+            // Make API call to delete exercise
+            fetch(`/api/lessons/exercise/${currentExerciseId}/`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Token ${Auth.getToken()}`
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    // Remove the exercise from the DOM
+                    const exerciseElement = document.querySelector(`[data-exercise-id="${currentExerciseId}"]`);
+                    if (exerciseElement) {
+                        exerciseElement.remove();
+                    }
+                    
+                    // Show empty state if no exercises left
+                    if (exercisesList.children.length === 0) {
+                        exercisesList.appendChild(emptyState);
+                        emptyState.style.display = 'block';
+                    }
+                    
+                    // Hide the modal
+                    hideDeleteModal();
+                } else {
+                    // Show error message
+                    response.json().then(data => {
+                        alert('Error: ' + (data.error || 'Failed to delete exercise'));
+                    });
+                    hideDeleteModal();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while deleting the exercise. Please try again.');
+                hideDeleteModal();
+            });
+        }
+    });
+    
+    // Delegate event listeners for exercise actions
+    exercisesList.addEventListener('click', function(e) {
+        // Edit button
+        if (e.target.classList.contains('btn-edit')) {
+            const exerciseItem = e.target.closest('.exercise-item');
+            const exerciseId = exerciseItem.getAttribute('data-exercise-id');
+            
+            // Fetch exercise details
+            fetch(`/api/lessons/exercise/${exerciseId}/`, {
+                headers: {
+                    'Authorization': `Token ${Auth.getToken()}`
+                }
+            })
+            .then(response => response.json())
+            .then(exercise => {
+                showEditModal(exercise);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error fetching exercise details. Please try again.');
+            });
+        }
+        
+        // Delete button
+        if (e.target.classList.contains('btn-delete')) {
+            const exerciseItem = e.target.closest('.exercise-item');
+            const exerciseId = exerciseItem.getAttribute('data-exercise-id');
+            
+            showDeleteModal(exerciseId);
+        }
+        
+        // Preview button
+        if (e.target.classList.contains('btn-preview')) {
+            const exerciseItem = e.target.closest('.exercise-item');
+            const exerciseId = exerciseItem.getAttribute('data-exercise-id');
+            
+            // Fetch exercise details
+            fetch(`/api/lessons/exercise/${exerciseId}/`, {
+                headers: {
+                    'Authorization': `Token ${Auth.getToken()}`
+                }
+            })
+            .then(response => response.json())
+            .then(exercise => {
+                showPreviewModal(exercise);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error fetching exercise details. Please try again.');
+            });
+        }
+    });
+});
+</script>
+{% endblock %}

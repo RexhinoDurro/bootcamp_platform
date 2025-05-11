@@ -1,20 +1,25 @@
 {% extends 'base.html' %}
 
-{% block title %}Log In - JavaScript Bootcamp{% endblock %}
+{% block title %}Register - JavaScript Bootcamp{% endblock %}
 
 {% block content %}
 <div class="auth-container">
     <div class="auth-card card">
-        <h1>Log In</h1>
+        <h1>Create an Account</h1>
         
         <div class="message-container">
             <!-- Messages will be displayed here via JavaScript -->
         </div>
         
-        <form id="login-form" class="auth-form">
+        <form id="register-form" class="auth-form">
             <div class="form-group">
                 <label for="username">Username</label>
                 <input type="text" id="username" name="username" class="form-control" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" class="form-control" required>
             </div>
             
             <div class="form-group">
@@ -22,11 +27,22 @@
                 <input type="password" id="password" name="password" class="form-control" required>
             </div>
             
-            <button type="submit" class="btn">Log In</button>
+            <div class="form-group">
+                <label for="password_confirm">Confirm Password</label>
+                <input type="password" id="password_confirm" name="password_confirm" class="form-control" required>
+            </div>
+            
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="is_instructor" name="is_instructor"> I want to be an instructor
+                </label>
+            </div>
+            
+            <button type="submit" class="btn">Register</button>
         </form>
         
         <div class="auth-links">
-            <p>Don't have an account? <a href="{% url 'register' %}">Register</a></p>
+            <p>Already have an account? <a href="{% url 'login' %}">Log In</a></p>
         </div>
     </div>
 </div>
@@ -35,24 +51,36 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
     const messageContainer = document.querySelector('.message-container');
     
-    loginForm.addEventListener('submit', function(e) {
+    registerForm.addEventListener('submit', function(e) {
         e.preventDefault();
         
         const username = document.getElementById('username').value;
+        const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
+        const passwordConfirm = document.getElementById('password_confirm').value;
+        const isInstructor = document.getElementById('is_instructor').checked;
         
-        // Call the login API
-        fetch('/api/users/login/', {
+        // Validate form
+        if (password !== passwordConfirm) {
+            messageContainer.innerHTML = '<div class="error-message">Passwords do not match!</div>';
+            return;
+        }
+        
+        // Call the registration API
+        fetch('/api/users/register/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
                 username: username,
-                password: password
+                email: email,
+                password: password,
+                is_instructor: isInstructor,
+                is_student: !isInstructor
             })
         })
         .then(response => response.json())
@@ -65,7 +93,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.location.href = '/dashboard/';
             } else {
                 // Show error message
-                messageContainer.innerHTML = `<div class="error-message">${data.error || 'Login failed. Please try again.'}</div>`;
+                messageContainer.innerHTML = `<div class="error-message">${data.error || 'Registration failed. Please try again.'}</div>`;
             }
         })
         .catch(error => {

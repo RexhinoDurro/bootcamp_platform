@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if is_edit %}Edit{% else %}Create{% endif %} Course - JavaScript Bootcamp{% endblock %}
+
+{% block content %}
+<div class="course-form">
+    <div class="form-header">
+        <h1>{% if is_edit %}Edit{% else %}Create{% endif %} Course</h1>
+    </div>
+    
+    <div class="form-container card">
+        <div class="message-container">
+            <!-- Messages will be displayed here via JavaScript -->
+        </div>
+        
+        <form id="course-form" class="course-form" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="title">Course Title</label>
+                <input type="text" id="title" name="title" class="form-control" required
+                    value="{{ course.title|default:'' }}">
+            </div>
+            
+            <div class="form-group">
+                <label for="slug">URL Slug</label>
+                <input type="text" id="slug" name="slug" class="form-control" required
+                    value="{{ course.slug|default:'' }}">
+                <small>This will be used in the course URL. Use only lowercase letters, numbers, and hyphens.</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="description">Course Description</label>
+                <textarea id="description" name="description" class="form-control" rows="6" required>{{ course.description|default:'' }}</textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="thumbnail">Course Thumbnail</label>
+                {% if course.thumbnail %}
+                    <div class="current-thumbnail">
+                        <img src="{{ course.thumbnail.url }}" alt="{{ course.title }}" class="thumbnail-preview">
+                    </div>
+                {% endif %}
+                <input type="file" id="thumbnail" name="thumbnail" class="form-control" accept="image/*">
+            </div>
+            
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="is_published" name="is_published" 
+                        {% if course.is_published %}checked{% endif %}>
+                    Publish Course
+                </label>
+                <small>Published courses will be visible to all students.</small>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn">
+                    {% if is_edit %}Update Course{% else %}Create Course{% endif %}
+                </button>
+                <a href="/dashboard/instructor/" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const courseForm = document.getElementById('course-form');
+    const messageContainer = document.querySelector('.message-container');
+    const titleInput = document.getElementById('title');
+    const slugInput = document.getElementById('slug');
+    
+    // Auto-generate slug from title
+    titleInput.addEventListener('blur', function() {
+        if (!slugInput.value) {
+            // Generate slug from title
+            const slug = titleInput.value
+                .toLowerCase()
+                .replace(/[^\w\s-]/g, '')
+                .replace(/\s+/g, '-')
+                .replace(/-+/g, '-');
+            
+            slugInput.value = slug;
+        }
+    });
+    
+    // Handle form submission
+    courseForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Get form data
+        const formData = new FormData(courseForm);
+        
+        // Determine endpoint and method
+        const courseId = '{{ course.id|default:"" }}';
+        const endpoint = courseId ? `/api/courses/${courseId}/` : '/api/courses/';
+        const method = courseId ? 'PATCH' : 'POST';
+        
+        // Only include thumbnail if a file was selected
+        const thumbnailInput = document.getElementById('thumbnail');
+        if (!thumbnailInput.files.length && method === 'PATCH') {
+            formData.delete('thumbnail');
+        }
+        
+        // Make API call
+        fetch(endpoint, {
+            method: method,
+            headers: {
+                'Authorization': `Token ${Auth.getToken()}`
+            },
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(JSON.stringify(data));
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Redirect to instructor dashboard
+            window.location.href = '/dashboard/instructor/';
+        })
+        .catch(error => {
+            let errorData;
+            try {
+                errorData = JSON.parse(error.message);
+            } catch (e) {
+                errorData = { error: 'An unexpected error occurred' };
+            }
+            
+            // Display error messages
+            let errorHtml = '<div class="error-message">';
+            
+            if (typeof errorData === 'object') {
+                for (const field in errorData) {
+                    const fieldErrors = Array.isArray(errorData[field]) 
+                        ? errorData[field].join(', ') 
+                        : errorData[field];
+                    
+                    errorHtml += `<p><strong>${field}:</strong> ${fieldErrors}</p>`;
+                }
+            } else {
+                errorHtml += `<p>${errorData}</p>`;
+            }
+            
+            errorHtml += '</div>';
+            messageContainer.innerHTML = errorHtml;
+        });
+    });
+});
+</script>
+{% endblock %}

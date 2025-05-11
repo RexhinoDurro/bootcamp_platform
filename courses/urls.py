@@ -6,4 +6,8 @@ from . import views
 router = DefaultRouter()
 router.register('', views.CourseViewSet, basename='course')
 
-urlpatterns = router.urls
+urlpatterns = [
+    path('enrolled/', views.get_enrolled_courses, name='enrolled-courses'),
+]
+
+urlpatterns += router.urls

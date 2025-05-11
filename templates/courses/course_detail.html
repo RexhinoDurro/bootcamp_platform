@@ -1,41 +1,80 @@
 {% extends 'base.html' %}
 
-{% block title %}JavaScript Courses - JavaScript Bootcamp{% endblock %}
+{% block title %}{{ course.title }} - JavaScript Bootcamp{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1>JavaScript Courses</h1>
-    <p>Explore our collection of comprehensive JavaScript courses</p>
+<div class="course-header">
+    <h1>{{ course.title }}</h1>
+    <p class="instructor">By {{ course.instructor.get_full_name|default:course.instructor.username }}</p>
 </div>
 
-<div class="filter-controls">
-    <form action="" method="get" class="search-form">
-        <input type="text" name="search" placeholder="Search courses..." class="form-control">
-        <button type="submit" class="btn">Search</button>
-    </form>
+<div class="course-container">
+    <div class="course-details card">
+        {% if course.thumbnail %}
+            <img src="{{ course.thumbnail.url }}" alt="{{ course.title }}" class="course-image">
+        {% endif %}
+        
+        <div class="course-description">
+            <h2>About This Course</h2>
+            <p>{{ course.description }}</p>
+        </div>
+        
+        {% if user.is_authenticated %}
+            <div class="course-enrollment">
+                <button id="enroll-button" class="btn">Enroll Now</button>
+            </div>
+        {% else %}
+            <div class="course-enrollment">
+                <p>Please <a href="{% url 'login' %}">log in</a> to enroll in this course.</p>
+            </div>
+        {% endif %}
+    </div>
+    
+    <div class="course-content card">
+        <h2>Course Content</h2>
+        
+        {% if course.modules.exists %}
+            <div class="modules-list">
+                {% for module in course.modules.all %}
+                    <div class="module-item">
+                        <h3>{{ module.title }}</h3>
+                        <p>{{ module.description }}</p>
+                        
+                        {% if module.lessons.exists %}
+                            <ul class="lessons-list">
+                                {% for lesson in module.lessons.all %}
+                                    <li class="lesson-item">
+                                        <span class="lesson-type {{ lesson.lesson_type }}">{{ lesson.lesson_type|title }}</span>
+                                        <span class="lesson-title">{{ lesson.title }}</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="empty-state">No lessons available yet.</p>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-state">No modules available yet.</p>
+        {% endif %}
+    </div>
 </div>
 
-<div class="course-grid">
-    {% for course in courses %}
-        <div class="course-card card">
-            {% if course.thumbnail %}
-                <img src="{{ course.thumbnail.url }}" alt="{{ course.title }}">
-            {% else %}
-                <div class="placeholder-img">JS</div>
-            {% endif %}
-            <div class="card-body">
-                <h3>{{ course.title }}</h3>
-                <p class="instructor">By {{ course.instructor.get_full_name|default:course.instructor.username }}</p>
-                <p>{{ course.description|truncatewords:20 }}</p>
-            </div>
-            <div class="card-footer">
-                <a href="{% url 'course-detail' course.slug %}" class="btn">View Course</a>
-            </div>
-        </div>
-    {% empty %}
-        <div class="empty-state card">
-            <p>No courses available yet. Please check back soon!</p>
-        </div>
-    {% endfor %}
-</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const enrollButton = document.getElementById('enroll-button');
+    
+    if (enrollButton) {
+        enrollButton.addEventListener('click', function() {
+            // Here you would add enrollment functionality
+            // For now, we'll just redirect to the first lesson
+            alert('Enrollment feature coming soon!');
+        });
+    }
+});
+</script>
 {% endblock %}

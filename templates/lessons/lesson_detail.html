@@ -1,0 +1,229 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ lesson.title }} - JavaScript Bootcamp{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/learning.css">
+<link rel="stylesheet" href="/static/css/prism.css">
+{% endblock %}
+
+{% block content %}
+<div class="lesson-container">
+    <div class="sidebar">
+        <div class="module-info">
+            <h3>{{ lesson.module.title }}</h3>
+            <p>{{ lesson.module.course.title }}</p>
+        </div>
+        
+        <ul class="lesson-navigation">
+            {% for module_lesson in lesson.module.lessons.all %}
+                <li class="{% if module_lesson.id == lesson.id %}active{% endif %}">
+                    <a href="{% url 'lesson-detail' module_lesson.id %}">
+                        <span class="lesson-type {{ module_lesson.lesson_type }}">{{ module_lesson.lesson_type|title }}</span>
+                        <span class="lesson-title">{{ module_lesson.title }}</span>
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+    
+    <div class="lesson-content card">
+        <div class="lesson-header">
+            <h1>{{ lesson.title }}</h1>
+            <div class="lesson-meta">
+                <span class="lesson-type {{ lesson.lesson_type }}">{{ lesson.lesson_type|title }}</span>
+            </div>
+        </div>
+        
+        <div class="lesson-body">
+            {% if lesson.lesson_type == 'video' %}
+                <div class="video-container">
+                    <!-- You would replace this with actual video embed -->
+                    <div class="video-placeholder">Video content would be displayed here</div>
+                </div>
+            {% endif %}
+            
+            <div class="content-text">
+                {{ lesson.content|safe }}
+            </div>
+            
+            {% if lesson.lesson_type == 'exercise' and lesson.exercises.exists %}
+                <div class="exercise-section">
+                    <h3>Exercise: {{ lesson.exercises.first.title }}</h3>
+                    <p>{{ lesson.exercises.first.description }}</p>
+                    
+                    <div class="code-editor">
+                        <div class="editor-header">
+                            <span>JavaScript</span>
+                        </div>
+                        <textarea id="code-input" class="code-input">{{ lesson.exercises.first.initial_code }}</textarea>
+                    </div>
+                    
+                    <div class="editor-controls">
+                        <button id="run-code" class="btn">Run Code</button>
+                        <button id="submit-code" class="btn btn-secondary">Submit Solution</button>
+                    </div>
+                    
+                    <div id="output-console" class="output-console">
+                        <div class="console-header">Console Output</div>
+                        <div id="console-output" class="console-output"></div>
+                    </div>
+                </div>
+            {% endif %}
+            
+            {% if lesson.lesson_type == 'quiz' %}
+                <div class="quiz-section">
+                    <h3>Quiz</h3>
+                    <form id="quiz-form" class="quiz-form">
+                        <!-- Quiz questions would be dynamically loaded here -->
+                        <p>Quiz functionality coming soon!</p>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="lesson-footer">
+            <button id="mark-complete" class="btn {% if progress.completed %}btn-completed{% endif %}" {% if progress.completed %}disabled{% endif %}>
+                {% if progress.completed %}Completed{% else %}Mark as Complete{% endif %}
+            </button>
+            
+            <div class="lesson-navigation-buttons">
+                {% if prev_lesson %}
+                    <a href="{% url 'lesson-detail' prev_lesson.id %}" class="btn btn-secondary">Previous Lesson</a>
+                {% endif %}
+                
+                {% if next_lesson %}
+                    <a href="{% url 'lesson-detail' next_lesson.id %}" class="btn">Next Lesson</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/prism.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const markCompleteButton = document.getElementById('mark-complete');
+    const runCodeButton = document.getElementById('run-code');
+    const submitCodeButton = document.getElementById('submit-code');
+    const codeInput = document.getElementById('code-input');
+    const consoleOutput = document.getElementById('console-output');
+    
+    if (markCompleteButton) {
+        markCompleteButton.addEventListener('click', function() {
+            if (this.disabled) {
+                return;
+            }
+            
+            // Mark lesson as complete
+            fetch('/api/lessons/progress/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Token ${Auth.getToken()}`
+                },
+                body: JSON.stringify({
+                    lesson_id: {{ lesson.id }}
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    markCompleteButton.textContent = 'Completed';
+                    markCompleteButton.classList.add('btn-completed');
+                    markCompleteButton.disabled = true;
+                    
+                    // Update sidebar
+                    const activeLessonItem = document.querySelector('.lesson-navigation .active');
+                    if (activeLessonItem) {
+                        activeLessonItem.classList.add('completed');
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        });
+    }
+    
+    if (runCodeButton && codeInput && consoleOutput) {
+        runCodeButton.addEventListener('click', function() {
+            try {
+                // Clear previous output
+                consoleOutput.innerHTML = '';
+                
+                // Store original console.log
+                const originalConsoleLog = console.log;
+                
+                // Override console.log to capture output
+                console.log = function() {
+                    const output = Array.from(arguments).join(' ');
+                    const outputLine = document.createElement('div');
+                    outputLine.textContent = output;
+                    consoleOutput.appendChild(outputLine);
+                };
+                
+                // Run the code
+                eval(codeInput.value);
+                
+                // Restore original console.log
+                console.log = originalConsoleLog;
+            } catch (error) {
+                const errorLine = document.createElement('div');
+                errorLine.classList.add('error');
+                errorLine.textContent = error.toString();
+                consoleOutput.appendChild(errorLine);
+            }
+        });
+    }
+    
+    if (submitCodeButton && codeInput && consoleOutput) {
+        submitCodeButton.addEventListener('click', function() {
+            // Submit code for checking
+            fetch('/api/lessons/exercise/{{ lesson.exercises.first.id }}/check/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Token ${Auth.getToken()}`
+                },
+                body: JSON.stringify({
+                    code: codeInput.value
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const feedbackElement = document.createElement('div');
+                feedbackElement.classList.add(data.success ? 'success' : 'error');
+                feedbackElement.textContent = data.feedback;
+                consoleOutput.innerHTML = '';
+                consoleOutput.appendChild(feedbackElement);
+                
+                if (data.success) {
+                    // Mark lesson as complete automatically
+                    markCompleteButton.textContent = 'Completed';
+                    markCompleteButton.classList.add('btn-completed');
+                    markCompleteButton.disabled = true;
+                    
+                    // Update sidebar
+                    const activeLessonItem = document.querySelector('.lesson-navigation .active');
+                    if (activeLessonItem) {
+                        activeLessonItem.classList.add('completed');
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                
+                const errorElement = document.createElement('div');
+                errorElement.classList.add('error');
+                errorElement.textContent = 'An error occurred. Please try again.';
+                consoleOutput.innerHTML = '';
+                consoleOutput.appendChild(errorElement);
+            });
+        });
+    }
+});
+</script>
+{% endblock %}
