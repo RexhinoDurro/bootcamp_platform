@@ -69,20 +69,23 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Call the registration API
-        fetch('/api/users/register/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                username: username,
-                email: email,
-                password: password,
-                is_instructor: isInstructor,
-                is_student: !isInstructor
-            })
-        })
+        // Helper function to get cookies (for CSRF token)
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        // Get CSRF token
         .then(response => response.json())
         .then(data => {
             if (data.token) {

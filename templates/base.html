@@ -60,31 +60,25 @@
     <script>
         // Handle logout
         document.addEventListener('DOMContentLoaded', function() {
-            const logoutButton = document.getElementById('logout-button');
-            if (logoutButton) {
-                logoutButton.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    
-                    fetch('/api/users/logout/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Token ${Auth.getToken()}`
+    const logoutButton = document.getElementById('logout-button');
+    if (logoutButton) {
+        logoutButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Helper function to get CSRF token
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
                         }
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        // Clear auth data and redirect
-                        Auth.clearAuth();
-                        window.location.href = '/';
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        // Even if there's an error, clear auth data and redirect
-                        Auth.clearAuth();
-                        window.location.href = '/';
-                    });
-                });
+                    }
+                }
+                return cookieValue;
             }
             
             // Show active navigation link
