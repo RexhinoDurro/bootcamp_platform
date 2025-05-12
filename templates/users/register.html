@@ -85,12 +85,29 @@ document.addEventListener('DOMContentLoaded', function() {
             return cookieValue;
         }
         
-        // Get CSRF token
+        // Call the registration API
+        fetch('/api/users/register/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                username: username,
+                email: email,
+                password: password,
+                is_instructor: isInstructor
+            }),
+            credentials: 'include'
+        })
         .then(response => response.json())
         .then(data => {
             if (data.token) {
                 // Store the token in localStorage
                 localStorage.setItem('authToken', data.token);
+                localStorage.setItem('userId', data.user_id);
+                localStorage.setItem('username', data.username);
+                localStorage.setItem('isInstructor', data.is_instructor);
                 
                 // Redirect to dashboard
                 window.location.href = '/dashboard/';

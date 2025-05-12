@@ -41,13 +41,22 @@ class CourseViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
     @action(detail=True, methods=['post'])
-    @permission_classes([permissions.IsAuthenticated])
     def enroll(self, request, pk=None):
+    # Check if user is authenticated through session or token
+        if not request.user.is_authenticated:
+            return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+        
         course = self.get_object()
         student = request.user
         
         # Check if already enrolled
         if Enrollment.objects.filter(student=student, course=course).exists():
+            # If already enrolled but inactive, reactivate
+            enrollment = Enrollment.objects.get(student=student, course=course)
+            if not enrollment.is_active:
+                enrollment.is_active = True
+                enrollment.save()
+                return Response({'message': 'Enrollment reactivated'}, status=status.HTTP_200_OK)
             return Response({'error': 'Already enrolled in this course'}, status=status.HTTP_400_BAD_REQUEST)
         
         # Create enrollment

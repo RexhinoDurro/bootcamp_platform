@@ -62,31 +62,80 @@ def check_exercise(request, pk):
     exercise = get_object_or_404(Exercise, pk=pk)
     user_code = request.data.get('code', '')
     
-    # In a real implementation, you would run tests against the user's code
-    # For now, we'll just check if the code contains certain keywords
-    
-    # Simple placeholder validation - in production, you'd use something more robust
-    # like a sandboxed code execution environment
+    # More robust validation with hints
     success = False
     feedback = "Your solution doesn't seem to meet the requirements."
+    hints = []
     
-    if len(user_code) > 0 and any(keyword in user_code for keyword in ['function', 'const', 'let', 'var']):
-        success = True
-        feedback = "Great job! Your solution passes the tests."
+    # Basic validation - check if code contains required keywords/patterns
+    # This is simplified; a real implementation would use a proper code execution environment
+    try:
+        # Check if the required function exists in the code
+        if 'function calculate' in exercise.test_code and 'function calculate' not in user_code:
+            hints.append("Make sure you have defined a function named 'calculate'.")
         
-        # Mark the lesson as complete
-        lesson = exercise.lesson
-        progress, created = UserProgress.objects.get_or_create(
-            user=request.user,
-            lesson=lesson
-        )
-        progress.completed = True
-        progress.completed_at = timezone.now()
-        progress.save()
+        if 'function getGreeting' in exercise.test_code and 'function getGreeting' not in user_code:
+            hints.append("Make sure you have defined a function named 'getGreeting'.")
+        
+        # Check for common issues
+        if user_code.count('return') == 0 and ('function' in user_code):
+            hints.append("Your function should return a value using the 'return' keyword.")
+        
+        if 'console.log' in exercise.test_code and 'console.log' not in user_code:
+            hints.append("Try using console.log() to output your message.")
+        
+        # Simple tests for specific exercises (based on exercise ID or title)
+        if "Hello World" in exercise.title and "Hello, JavaScript" not in user_code:
+            hints.append("Your code should output 'Hello, JavaScript!' to the console.")
+        
+        if "Calculator" in exercise.title:
+            for op in ['+', '-', '*', '/']:
+                if op not in user_code:
+                    hints.append(f"Make sure your calculator handles the '{op}' operation.")
+        
+        if "Greeting" in exercise.title and "time" in exercise.description.lower():
+            if "morning" not in user_code or "afternoon" not in user_code or "evening" not in user_code:
+                hints.append("Your function should provide different greetings based on the time of day.")
+        
+        # More general validation
+        if len(user_code.strip()) < 10:
+            hints.append("Your solution seems too short. Make sure you've written a complete solution.")
+        
+        # For simplicity, we'll consider the solution successful if at least some expected patterns are present
+        # In a real implementation, you would execute the test code in a sandbox
+        if (
+            ("Hello World" in exercise.title and "Hello, JavaScript" in user_code) or
+            ("Calculator" in exercise.title and all(op in user_code for op in ['+', '-', '*', '/'])) or
+            ("Greeting" in exercise.title and all(time in user_code for time in ["morning", "afternoon", "evening"]))
+        ):
+            success = True
+            if "Hello World" in exercise.title:
+                feedback = "Great job! You've successfully written your first JavaScript statement."
+            elif "Calculator" in exercise.title:
+                feedback = "Excellent! Your calculator function handles all required operations."
+            elif "Greeting" in exercise.title:
+                feedback = "Well done! Your greeting function properly changes based on the time of day."
+            else:
+                feedback = "Great job! Your solution passes the tests."
+            
+            # Mark the lesson as complete
+            lesson = exercise.lesson
+            progress, created = UserProgress.objects.get_or_create(
+                user=request.user,
+                lesson=lesson
+            )
+            progress.completed = True
+            progress.completed_at = timezone.now()
+            progress.save()
+    
+    except Exception as e:
+        feedback = f"Error checking your code: {str(e)}"
+        hints = ["Make sure your code has valid syntax."]
     
     return Response({
         'success': success,
-        'feedback': feedback
+        'feedback': feedback,
+        'hints': hints
     })
     
 @login_required

@@ -5,6 +5,7 @@
 {% block extra_css %}
 <link rel="stylesheet" href="/static/css/learning.css">
 <link rel="stylesheet" href="/static/css/prism.css">
+<link rel="stylesheet" href="/static/css/exercises.css">
 {% endblock %}
 
 {% block content %}
@@ -140,6 +141,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (activeLessonItem) {
                         activeLessonItem.classList.add('completed');
                     }
+                    
+                    // Show next lesson button if exists
+                    if (document.querySelector('.lesson-navigation-buttons .btn:last-child')) {
+                        document.querySelector('.lesson-navigation-buttons .btn:last-child').classList.add('btn-highlight');
+                    }
                 }
             })
             .catch(error => {
@@ -154,26 +160,65 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Clear previous output
                 consoleOutput.innerHTML = '';
                 
-                // Store original console.log
-                const originalConsoleLog = console.log;
-                
-                // Override console.log to capture output
-                console.log = function() {
-                    const output = Array.from(arguments).join(' ');
-                    const outputLine = document.createElement('div');
-                    outputLine.textContent = output;
-                    consoleOutput.appendChild(outputLine);
+                // Create a controlled environment for running the code
+                const sandbox = function(userCode) {
+                    // Store original console methods
+                    const originalConsole = {
+                        log: console.log,
+                        error: console.error,
+                        warn: console.warn
+                    };
+                    
+                    // Create a container for console output
+                    const output = [];
+                    
+                    // Override console methods
+                    console.log = function(...args) {
+                        const line = document.createElement('div');
+                        line.textContent = args.join(' ');
+                        consoleOutput.appendChild(line);
+                        output.push({ type: 'log', content: args.join(' ') });
+                    };
+                    
+                    console.error = function(...args) {
+                        const line = document.createElement('div');
+                        line.classList.add('error');
+                        line.textContent = args.join(' ');
+                        consoleOutput.appendChild(line);
+                        output.push({ type: 'error', content: args.join(' ') });
+                    };
+                    
+                    console.warn = function(...args) {
+                        const line = document.createElement('div');
+                        line.classList.add('warning');
+                        line.textContent = args.join(' ');
+                        consoleOutput.appendChild(line);
+                        output.push({ type: 'warn', content: args.join(' ') });
+                    };
+                    
+                    try {
+                        // Execute the user's code
+                        eval(userCode);
+                    } catch (error) {
+                        // Display execution errors
+                        console.error(`Error: ${error.message}`);
+                    } finally {
+                        // Restore original console methods
+                        console.log = originalConsole.log;
+                        console.error = originalConsole.error;
+                        console.warn = originalConsole.warn;
+                    }
+                    
+                    return output;
                 };
                 
-                // Run the code
-                eval(codeInput.value);
+                // Run the code in the sandbox
+                sandbox(codeInput.value);
                 
-                // Restore original console.log
-                console.log = originalConsoleLog;
             } catch (error) {
                 const errorLine = document.createElement('div');
                 errorLine.classList.add('error');
-                errorLine.textContent = error.toString();
+                errorLine.textContent = `Error: ${error.message}`;
                 consoleOutput.appendChild(errorLine);
             }
         });
@@ -181,6 +226,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (submitCodeButton && codeInput && consoleOutput) {
         submitCodeButton.addEventListener('click', function() {
+            // Clear previous output
+            consoleOutput.innerHTML = '';
+            
+            // Add a loading message
+            const loadingMsg = document.createElement('div');
+            loadingMsg.textContent = 'Running tests...';
+            consoleOutput.appendChild(loadingMsg);
+            
             // Submit code for checking
             fetch('/api/lessons/exercise/{{ lesson.exercises.first.id }}/check/', {
                 method: 'POST',
@@ -194,36 +247,225 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => response.json())
             .then(data => {
-                const feedbackElement = document.createElement('div');
-                feedbackElement.classList.add(data.success ? 'success' : 'error');
-                feedbackElement.textContent = data.feedback;
+                // Clear loading message
                 consoleOutput.innerHTML = '';
-                consoleOutput.appendChild(feedbackElement);
                 
+                // Create feedback elements with better styling
                 if (data.success) {
-                    // Mark lesson as complete automatically
-                    markCompleteButton.textContent = 'Completed';
-                    markCompleteButton.classList.add('btn-completed');
-                    markCompleteButton.disabled = true;
+                    // Success feedback
+                    const successDiv = document.createElement('div');
+                    successDiv.classList.add('success');
                     
-                    // Update sidebar
-                    const activeLessonItem = document.querySelector('.lesson-navigation .active');
-                    if (activeLessonItem) {
-                        activeLessonItem.classList.add('completed');
+                    const successIcon = document.createElement('span');
+                    successIcon.textContent = '✓ ';
+                    successIcon.classList.add('success-icon');
+                    
+                    const successMessage = document.createElement('span');
+                    successMessage.textContent = data.feedback || 'Great job! Your solution passes all tests.';
+                    
+                    successDiv.appendChild(successIcon);
+                    successDiv.appendChild(successMessage);
+                    consoleOutput.appendChild(successDiv);
+                    
+                    // Add confetti animation
+                    const confettiEffect = document.createElement('div');
+                    confettiEffect.classList.add('confetti-container');
+                    for (let i = 0; i < 30; i++) {
+                        const confetti = document.createElement('div');
+                        confetti.classList.add('confetti');
+                        confetti.style.left = `${Math.random() * 100}%`;
+                        confetti.style.animationDelay = `${Math.random() * 2}s`;
+                        confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                        confettiEffect.appendChild(confetti);
+                    }
+                    document.querySelector('.lesson-content').appendChild(confettiEffect);
+                    
+                    // Auto-mark as complete
+                    if (markCompleteButton && !markCompleteButton.disabled) {
+                        setTimeout(() => {
+                            markCompleteButton.click();
+                        }, 1000);
+                    }
+                    
+                    // Show hint for next steps
+                    setTimeout(() => {
+                        const nextSteps = document.createElement('div');
+                        nextSteps.classList.add('next-steps');
+                        nextSteps.innerHTML = `
+                            <h4>What's Next?</h4>
+                            <p>Well done! You can now:</p>
+                            <ul>
+                                <li>Proceed to the next lesson</li>
+                                <li>Experiment with the code further</li>
+                                <li>Review what you've learned</li>
+                            </ul>
+                        `;
+                        consoleOutput.appendChild(nextSteps);
+                    }, 1500);
+                    
+                } else {
+                    // Error feedback with hints
+                    const errorDiv = document.createElement('div');
+                    errorDiv.classList.add('error');
+                    
+                    const errorIcon = document.createElement('span');
+                    errorIcon.textContent = '✗ ';
+                    errorIcon.classList.add('error-icon');
+                    
+                    const errorMessage = document.createElement('span');
+                    errorMessage.textContent = data.feedback || 'Your solution does not pass all tests.';
+                    
+                    errorDiv.appendChild(errorIcon);
+                    errorDiv.appendChild(errorMessage);
+                    consoleOutput.appendChild(errorDiv);
+                    
+                    // Add hints if available
+                    if (data.hints && data.hints.length) {
+                        const hintsContainer = document.createElement('div');
+                        hintsContainer.classList.add('hints-container');
+                        
+                        const hintsTitle = document.createElement('h4');
+                        hintsTitle.textContent = 'Hints:';
+                        hintsContainer.appendChild(hintsTitle);
+                        
+                        const hintsList = document.createElement('ul');
+                        data.hints.forEach(hint => {
+                            const hintItem = document.createElement('li');
+                            hintItem.textContent = hint;
+                            hintsList.appendChild(hintItem);
+                        });
+                        
+                        hintsContainer.appendChild(hintsList);
+                        consoleOutput.appendChild(hintsContainer);
+                    } else {
+                        // Generic hint
+                        const hintDiv = document.createElement('div');
+                        hintDiv.classList.add('hint');
+                        hintDiv.innerHTML = '<strong>Tip:</strong> Try running your code first to see the output, then fix any issues before submitting again.';
+                        consoleOutput.appendChild(hintDiv);
                     }
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
                 
+                // Clear loading message
+                consoleOutput.innerHTML = '';
+                
                 const errorElement = document.createElement('div');
                 errorElement.classList.add('error');
                 errorElement.textContent = 'An error occurred. Please try again.';
-                consoleOutput.innerHTML = '';
                 consoleOutput.appendChild(errorElement);
             });
         });
     }
+    
+    // Add helpful keyboard shortcuts
+    if (codeInput) {
+        // Enable tab key inside code editor
+        codeInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                
+                // Insert tab at cursor position
+                const start = this.selectionStart;
+                const end = this.selectionEnd;
+                
+                this.value = this.value.substring(0, start) + '  ' + this.value.substring(end);
+                this.selectionStart = this.selectionEnd = start + 2;
+            }
+        });
+        
+        // Ctrl+Enter to run code
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && document.activeElement === codeInput && runCodeButton) {
+                e.preventDefault();
+                runCodeButton.click();
+            }
+        });
+    }
 });
 </script>
+
+<style>
+.success {
+    color: #28a745;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    background-color: rgba(40, 167, 69, 0.1);
+    border-left: 4px solid #28a745;
+}
+
+.error {
+    color: #dc3545;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    background-color: rgba(220, 53, 69, 0.1);
+    border-left: 4px solid #dc3545;
+}
+
+.hint {
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 4px;
+    background-color: rgba(255, 193, 7, 0.1);
+    border-left: 4px solid #ffc107;
+}
+
+.next-steps {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.confetti-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+.confetti {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background-color: #f00;
+    top: -10px;
+    animation: confetti-fall 4s linear forwards;
+}
+
+@keyframes confetti-fall {
+    0% {
+        transform: translateY(0) rotate(0);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+    }
+}
+
+.btn-highlight {
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(52, 152, 219, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(52, 152, 219, 0);
+    }
+}
+</style>
 {% endblock %}

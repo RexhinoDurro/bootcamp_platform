@@ -36,8 +36,12 @@ class TokenAuthMiddleware:
 class CSRFExemptMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
-        # Compile all CSRF exempt URL patterns
-        self.csrf_exempt_urls = [re.compile(url) for url in getattr(settings, 'CSRF_EXEMPT_URLS', [])]
+        self.csrf_exempt_urls = [
+            re.compile(r'^/api/users/register/$'),
+            re.compile(r'^/api/users/login/$'),
+            re.compile(r'^/api/users/logout/$'),
+            re.compile(r'^/api/courses/\d+/enroll/$'),  # Add this line for enrollment
+        ]
 
     def __call__(self, request):
         # Check if the path matches any of the exempt patterns
