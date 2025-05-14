@@ -18,14 +18,59 @@
         
         <ul class="lesson-navigation">
             {% for module_lesson in lesson.module.lessons.all %}
-                <li class="{% if module_lesson.id == lesson.id %}active{% endif %}">
+                <li class="{% if module_lesson.id == lesson.id %}active{% endif %} {% if module_lesson.id in user_progress %}completed{% endif %}">
                     <a href="{% url 'lesson-detail' module_lesson.id %}">
                         <span class="lesson-type {{ module_lesson.lesson_type }}">{{ module_lesson.lesson_type|title }}</span>
                         <span class="lesson-title">{{ module_lesson.title }}</span>
+                        {% if module_lesson.id in user_progress %}
+                            <span class="completion-badge">✓</span>
+                        {% endif %}
                     </a>
                 </li>
             {% endfor %}
         </ul>
+        
+        <!-- Module navigation -->
+        <div class="module-navigation">
+            <h4>Course Modules</h4>
+            <ul class="modules-quick-nav">
+                {% for module in lesson.module.course.modules.all %}
+                    <li class="{% if module.id == lesson.module.id %}active{% endif %}">
+                        <a href="#" class="module-nav-item" data-module-id="{{ module.id }}">
+                            {{ module.title }}
+                        </a>
+                        
+                        <!-- Show lessons if it's the current module -->
+                        {% if module.id == lesson.module.id %}
+                            <ul class="module-lessons-nav">
+                                {% for mod_lesson in module.lessons.all %}
+                                    <li class="{% if mod_lesson.id == lesson.id %}active{% endif %} {% if mod_lesson.id in user_progress %}completed{% endif %}">
+                                        <a href="{% url 'lesson-detail' mod_lesson.id %}">
+                                            {{ mod_lesson.title }}
+                                            {% if mod_lesson.id in user_progress %}
+                                                <span class="mini-badge">✓</span>
+                                            {% endif %}
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+            
+            <div class="course-progress-container">
+                <h4>Course Progress</h4>
+                <div class="progress-bar">
+                    <div class="progress" style="width: {{ course_progress_percentage }}%"></div>
+                </div>
+                <span class="progress-text">{{ course_progress_percentage }}% Complete</span>
+                
+                <a href="{% url 'dashboard' %}" class="back-to-dashboard">
+                    <i class="dashboard-icon">⬅</i> Back to Dashboard
+                </a>
+            </div>
+        </div>
     </div>
     
     <div class="lesson-content card">
@@ -56,13 +101,20 @@
                     <div class="code-editor">
                         <div class="editor-header">
                             <span>JavaScript</span>
+                            <div class="editor-actions">
+                                <button id="reset-code" class="editor-btn" title="Reset code">↺</button>
+                                <button id="copy-code" class="editor-btn" title="Copy code">📋</button>
+                            </div>
                         </div>
                         <textarea id="code-input" class="code-input">{{ lesson.exercises.first.initial_code }}</textarea>
                     </div>
                     
                     <div class="editor-controls">
-                        <button id="run-code" class="btn">Run Code</button>
-                        <button id="submit-code" class="btn btn-secondary">Submit Solution</button>
+                        <button id="run-code" class="btn btn-run">Run Code</button>
+                        <button id="submit-code" class="btn btn-submit">Submit Solution</button>
+                        <div class="keyboard-shortcuts">
+                            <span><kbd>Ctrl</kbd> + <kbd>Enter</kbd> to run code</span>
+                        </div>
                     </div>
                     
                     <div id="output-console" class="output-console">
@@ -84,18 +136,43 @@
         </div>
         
         <div class="lesson-footer">
-            <button id="mark-complete" class="btn {% if progress.completed %}btn-completed{% endif %}" {% if progress.completed %}disabled{% endif %}>
-                {% if progress.completed %}Completed{% else %}Mark as Complete{% endif %}
-            </button>
+            <div id="completion-status" class="completion-status">
+                {% if progress.completed %}
+                    <div class="completion-message">
+                        <span class="checkmark">✓</span> Lesson completed successfully!
+                    </div>
+                {% endif %}
+            </div>
             
-            <div class="lesson-navigation-buttons">
-                {% if prev_lesson %}
-                    <a href="{% url 'lesson-detail' prev_lesson.id %}" class="btn btn-secondary">Previous Lesson</a>
-                {% endif %}
+            <div class="lesson-actions">
+                <button id="mark-complete" class="btn {% if progress.completed %}btn-completed{% endif %}" {% if progress.completed %}disabled{% endif %}>
+                    {% if progress.completed %}Completed{% else %}Mark as Complete{% endif %}
+                </button>
                 
-                {% if next_lesson %}
-                    <a href="{% url 'lesson-detail' next_lesson.id %}" class="btn">Next Lesson</a>
-                {% endif %}
+                <div class="lesson-navigation-buttons">
+                    {% if prev_lesson %}
+                        <a href="{% url 'lesson-detail' prev_lesson.id %}" class="btn btn-secondary">
+                            <span class="nav-arrow">←</span> Previous Lesson
+                        </a>
+                    {% endif %}
+                    
+                    {% if next_lesson %}
+                        <a href="{% url 'lesson-detail' next_lesson.id %}" class="btn {% if progress.completed %}btn-highlight{% endif %}">
+                            Next Lesson <span class="nav-arrow">→</span>
+                        </a>
+                    {% else %}
+                        <!-- If no next lesson, there should be a way to navigate to the next module or back to dashboard -->
+                        {% if next_module_first_lesson %}
+                            <a href="{% url 'lesson-detail' next_module_first_lesson.id %}" class="btn {% if progress.completed %}btn-highlight{% endif %}">
+                                Next Module <span class="nav-arrow">→</span>
+                            </a>
+                        {% else %}
+                            <a href="{% url 'dashboard' %}" class="btn {% if progress.completed %}btn-highlight{% endif %}">
+                                Back to Dashboard <span class="nav-arrow">→</span>
+                            </a>
+                        {% endif %}
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
@@ -111,6 +188,110 @@ document.addEventListener('DOMContentLoaded', function() {
     const submitCodeButton = document.getElementById('submit-code');
     const codeInput = document.getElementById('code-input');
     const consoleOutput = document.getElementById('console-output');
+    const resetCodeButton = document.getElementById('reset-code');
+    const copyCodeButton = document.getElementById('copy-code');
+    const completionStatus = document.getElementById('completion-status');
+    
+    // Store original code for reset functionality
+    const originalCode = codeInput ? codeInput.value : '';
+    
+    // Reset code button
+    if (resetCodeButton && codeInput) {
+        resetCodeButton.addEventListener('click', function() {
+            if (confirm('Reset code to initial state? Your changes will be lost.')) {
+                codeInput.value = originalCode;
+            }
+        });
+    }
+    
+    // Copy code button
+    if (copyCodeButton && codeInput) {
+        copyCodeButton.addEventListener('click', function() {
+            codeInput.select();
+            document.execCommand('copy');
+            
+            // Show feedback
+            const originalText = this.textContent;
+            this.textContent = '✓';
+            this.style.backgroundColor = '#28a745';
+            
+            setTimeout(() => {
+                this.textContent = originalText;
+                this.style.backgroundColor = '';
+            }, 1500);
+        });
+    }
+    
+    // Handle module navigation
+    document.querySelectorAll('.module-nav-item').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            const moduleId = this.getAttribute('data-module-id');
+            const moduleNav = this.parentNode;
+            
+            // Toggle active class
+            if (!moduleNav.classList.contains('active')) {
+                document.querySelectorAll('.modules-quick-nav li').forEach(li => {
+                    li.classList.remove('active');
+                });
+                moduleNav.classList.add('active');
+            }
+            
+            // Show/hide lessons
+            const lessonsNav = moduleNav.querySelector('.module-lessons-nav');
+            if (!lessonsNav) {
+                // Fetch lessons for this module
+                fetch(`/api/lessons/?module=${moduleId}`, {
+                    headers: {
+                        'Authorization': `Token ${Auth.getToken()}`
+                    }
+                })
+                .then(response => response.json())
+                .then(lessons => {
+                    // Create lessons navigation
+                    const ul = document.createElement('ul');
+                    ul.className = 'module-lessons-nav';
+                    
+                    lessons.forEach(lesson => {
+                        const li = document.createElement('li');
+                        li.className = lesson.id === {{ lesson.id }} ? 'active' : '';
+                        
+                        // Check if this lesson is completed
+                        {% if user_progress %}
+                        if ([{% for progress_id in user_progress %}{{ progress_id }}{% if not forloop.last %},{% endif %}{% endfor %}].includes(lesson.id)) {
+                            li.classList.add('completed');
+                        }
+                        {% endif %}
+                        
+                        const a = document.createElement('a');
+                        a.href = `/lessons/${lesson.id}/`;
+                        a.textContent = lesson.title;
+                        
+                        // Add completion badge if needed
+                        {% if user_progress %}
+                        if ([{% for progress_id in user_progress %}{{ progress_id }}{% if not forloop.last %},{% endif %}{% endfor %}].includes(lesson.id)) {
+                            const badge = document.createElement('span');
+                            badge.className = 'mini-badge';
+                            badge.textContent = '✓';
+                            a.appendChild(badge);
+                        }
+                        {% endif %}
+                        
+                        li.appendChild(a);
+                        ul.appendChild(li);
+                    });
+                    
+                    moduleNav.appendChild(ul);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            } else {
+                // Toggle lessons visibility
+                lessonsNav.style.display = lessonsNav.style.display === 'none' ? 'block' : 'none';
+            }
+        });
+    });
     
     if (markCompleteButton) {
         markCompleteButton.addEventListener('click', function() {
@@ -132,24 +313,97 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    // Update button state
                     markCompleteButton.textContent = 'Completed';
                     markCompleteButton.classList.add('btn-completed');
                     markCompleteButton.disabled = true;
+                    
+                    // Add completion message if it doesn't exist
+                    if (!document.querySelector('.completion-message')) {
+                        const completionMsg = document.createElement('div');
+                        completionMsg.className = 'completion-message';
+                        completionMsg.innerHTML = '<span class="checkmark">✓</span> Lesson completed successfully!';
+                        completionStatus.appendChild(completionMsg);
+                    }
                     
                     // Update sidebar
                     const activeLessonItem = document.querySelector('.lesson-navigation .active');
                     if (activeLessonItem) {
                         activeLessonItem.classList.add('completed');
+                        
+                        // Add completion badge if it doesn't exist
+                        if (!activeLessonItem.querySelector('.completion-badge')) {
+                            const badge = document.createElement('span');
+                            badge.className = 'completion-badge';
+                            badge.textContent = '✓';
+                            activeLessonItem.querySelector('a').appendChild(badge);
+                        }
                     }
                     
-                    // Show next lesson button if exists
-                    if (document.querySelector('.lesson-navigation-buttons .btn:last-child')) {
-                        document.querySelector('.lesson-navigation-buttons .btn:last-child').classList.add('btn-highlight');
+                    // Highlight the next lesson button
+                    const nextButton = document.querySelector('.lesson-navigation-buttons .btn:last-child');
+                    if (nextButton) {
+                        nextButton.classList.add('btn-highlight');
+                        
+                        // Change button text to make next action clearer
+                        if (nextButton.textContent.includes('Next Lesson')) {
+                            nextButton.innerHTML = 'Continue to Next Lesson <span class="nav-arrow pulse">→</span>';
+                        } else if (nextButton.textContent.includes('Next Module')) {
+                            nextButton.innerHTML = 'Continue to Next Module <span class="nav-arrow pulse">→</span>';
+                        } else {
+                            nextButton.innerHTML = 'Back to Dashboard <span class="nav-arrow pulse">→</span>';
+                        }
+                        
+                        // Optional: Auto-navigate after delay
+                        const countdownContainer = document.createElement('div');
+                        countdownContainer.className = 'auto-navigate-countdown';
+                        countdownContainer.innerHTML = 'Continuing in <span class="countdown-seconds">10</span> seconds...';
+                        document.querySelector('.lesson-footer').appendChild(countdownContainer);
+                        
+                        let countdown = 10;
+                        const countdownTimer = setInterval(() => {
+                            countdown--;
+                            const countdownElement = document.querySelector('.countdown-seconds');
+                            if (countdownElement) {
+                                countdownElement.textContent = countdown;
+                            }
+                            
+                            if (countdown <= 0) {
+                                clearInterval(countdownTimer);
+                                window.location.href = nextButton.getAttribute('href');
+                            }
+                        }, 1000);
+                        
+                        // Allow canceling countdown
+                        const cancelButton = document.createElement('button');
+                        cancelButton.className = 'cancel-auto-navigate';
+                        cancelButton.textContent = 'Cancel';
+                        countdownContainer.appendChild(cancelButton);
+                        
+                        cancelButton.addEventListener('click', () => {
+                            clearInterval(countdownTimer);
+                            countdownContainer.innerHTML = 'Auto-navigation canceled. Click the next button when ready.';
+                            setTimeout(() => {
+                                countdownContainer.style.display = 'none';
+                            }, 3000);
+                        });
                     }
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
+                // Show error message
+                if (completionStatus) {
+                    const errorMsg = document.createElement('div');
+                    errorMsg.className = 'error-message';
+                    errorMsg.textContent = 'Failed to mark lesson as complete. Please try again.';
+                    completionStatus.appendChild(errorMsg);
+                    
+                    // Remove error message after a delay
+                    setTimeout(() => {
+                        errorMsg.remove();
+                    }, 5000);
+                }
             });
         });
     }
@@ -232,7 +486,14 @@ document.addEventListener('DOMContentLoaded', function() {
             // Add a loading message
             const loadingMsg = document.createElement('div');
             loadingMsg.textContent = 'Running tests...';
+            loadingMsg.className = 'loading-message';
             consoleOutput.appendChild(loadingMsg);
+            
+            // Add loading animation
+            const loadingIndicator = document.createElement('div');
+            loadingIndicator.className = 'loading-indicator';
+            loadingIndicator.innerHTML = '<div class="loading-spinner"></div>';
+            consoleOutput.appendChild(loadingIndicator);
             
             // Submit code for checking
             fetch('/api/lessons/exercise/{{ lesson.exercises.first.id }}/check/', {
@@ -287,6 +548,56 @@ document.addEventListener('DOMContentLoaded', function() {
                         }, 1000);
                     }
                     
+                    // Add a continue button after successful completion
+                    const continueButtonContainer = document.createElement('div');
+                    continueButtonContainer.className = 'continue-container';
+                    
+                    {% if next_lesson %}
+                    const continueButton = document.createElement('a');
+                    continueButton.href = "{% url 'lesson-detail' next_lesson.id %}";
+                    continueButton.className = 'btn btn-success continue-btn';
+                    continueButton.innerHTML = 'Continue to Next Lesson <span class="arrow">→</span>';
+                    
+                    // Add countdown for auto-redirect
+                    const countdownSpan = document.createElement('span');
+                    countdownSpan.className = 'countdown';
+                    countdownSpan.textContent = '(10)';
+                    continueButton.appendChild(countdownSpan);
+                    
+                    continueButtonContainer.appendChild(continueButton);
+                    consoleOutput.appendChild(continueButtonContainer);
+                    
+                    // Countdown and auto-redirect
+                    let countdown = 10;
+                    const countdownInterval = setInterval(() => {
+                        countdown--;
+                        countdownSpan.textContent = `(${countdown})`;
+                        if (countdown <= 0) {
+                            clearInterval(countdownInterval);
+                            window.location.href = "{% url 'lesson-detail' next_lesson.id %}";
+                        }
+                    }, 1000);
+                    
+                    // Allow canceling the auto-redirect
+                    const cancelButton = document.createElement('button');
+                    cancelButton.className = 'btn btn-text cancel-redirect';
+                    cancelButton.textContent = 'Cancel redirect';
+                    continueButtonContainer.appendChild(cancelButton);
+                    
+                    cancelButton.addEventListener('click', () => {
+                        clearInterval(countdownInterval);
+                        countdownSpan.textContent = '(canceled)';
+                        cancelButton.style.display = 'none';
+                    });
+                    {% else %}
+                    const finishButton = document.createElement('a');
+                    finishButton.href = "{% url 'dashboard' %}";
+                    finishButton.className = 'btn btn-success continue-btn';
+                    finishButton.textContent = 'Return to Dashboard';
+                    continueButtonContainer.appendChild(finishButton);
+                    consoleOutput.appendChild(continueButtonContainer);
+                    {% endif %}
+                    
                     // Show hint for next steps
                     setTimeout(() => {
                         const nextSteps = document.createElement('div');
@@ -302,7 +613,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         `;
                         consoleOutput.appendChild(nextSteps);
                     }, 1500);
-                    
                 } else {
                     // Error feedback with hints
                     const errorDiv = document.createElement('div');
@@ -383,7 +693,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 runCodeButton.click();
             }
         });
+        
+        // Shift+Enter to submit code
+        document.addEventListener('keydown', function(e) {
+            if ((e.shiftKey) && e.key === 'Enter' && document.activeElement === codeInput && submitCodeButton) {
+                e.preventDefault();
+                submitCodeButton.click();
+            }
+        });
     }
+    
+    // Check if there's a next module first lesson
+    {% if next_module_first_lesson %}
+    // Code for transitioning to next module is already in place
+    {% endif %}
 });
 </script>
 
@@ -466,6 +789,265 @@ document.addEventListener('DOMContentLoaded', function() {
     100% {
         box-shadow: 0 0 0 0 rgba(52, 152, 219, 0);
     }
+}
+
+.continue-container {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.continue-btn {
+    padding: 10px 20px;
+    font-size: 16px;
+    background-color: #28a745;
+    color: white;
+    border-radius: 4px;
+    text-decoration: none;
+    display: inline-block;
+    animation: pulse 2s infinite;
+}
+
+.arrow {
+    display: inline-block;
+    margin-left: 8px;
+    animation: slideRight 1s infinite;
+}
+
+.countdown {
+    margin-left: 5px;
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+.completion-message {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 10px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.checkmark {
+    font-size: 20px;
+    margin-right: 10px;
+    color: #28a745;
+}
+
+@keyframes slideRight {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(5px); }
+}
+
+.next-lesson-button {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.next-lesson-button .btn {
+    padding: 10px 20px;
+    font-size: 16px;
+}
+
+.btn-success {
+    background-color: #28a745;
+    color: white;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+}
+
+.loading-message {
+    margin-bottom: 10px;
+    font-style: italic;
+    color: #666;
+}
+
+.loading-indicator {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 15px;
+}
+
+.loading-spinner {
+    width: 30px;
+    height: 30px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.cancel-redirect {
+    margin-left: 10px;
+    font-size: 0.8rem;
+    opacity: 0.7;
+}
+
+.btn-text {
+    background: none;
+    border: none;
+    text-decoration: underline;
+    cursor: pointer;
+    color: #666;
+}
+
+.auto-navigate-countdown {
+    background-color: rgba(52, 152, 219, 0.1);
+    border-left: 4px solid #3498db;
+    padding: 10px;
+    margin-top: 15px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.countdown-seconds {
+    font-weight: bold;
+    color: #3498db;
+}
+
+.cancel-auto-navigate {
+    background-color: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.modules-quick-nav {
+    list-style: none;
+    padding-left: 0;
+    margin-top: 15px;
+    border-top: 1px solid #eee;
+    padding-top: 15px;
+}
+
+.modules-quick-nav li {
+    margin-bottom: 8px;
+}
+
+.modules-quick-nav li.active {
+    font-weight: bold;
+}
+
+.module-nav-item {
+    display: block;
+    text-decoration: none;
+    color: var(--dark-text);
+    padding: 5px 0;
+}
+
+.module-nav-item:hover {
+    color: var(--primary-color);
+}
+
+.module-lessons-nav {
+    list-style: none;
+    padding-left: 15px;
+    margin-top: 5px;
+    border-left: 2px solid #eee;
+}
+
+.module-lessons-nav li {
+    margin-bottom: 5px;
+}
+
+.module-lessons-nav li.active {
+    font-weight: bold;
+}
+
+.module-lessons-nav li.completed a {
+    color: #28a745;
+}
+
+.module-lessons-nav a {
+    display: flex;
+    justify-content: space-between;
+    text-decoration: none;
+    color: var(--dark-text);
+    padding: 3px 0;
+}
+
+.mini-badge {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    background-color: #28a745;
+    color: white;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 16px;
+    font-size: 0.7em;
+}
+
+.course-progress-container {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.back-to-dashboard {
+    display: block;
+    margin-top: 15px;
+    text-decoration: none;
+    color: var(--dark-text);
+    font-size: 0.9em;
+}
+
+.dashboard-icon {
+    font-style: normal;
+}
+
+.editor-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.editor-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.editor-btn:hover {
+    opacity: 1;
+}
+
+.completion-status {
+    margin-bottom: 15px;
+}
+
+.lesson-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.nav-arrow {
+    display: inline-block;
+}
+
+.pulse {
+    animation: arrowPulse 1.5s infinite;
+}
+
+@keyframes arrowPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 }
 </style>
 {% endblock %}

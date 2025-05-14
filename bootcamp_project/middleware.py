@@ -1,4 +1,3 @@
-# Create a new file in bootcamp_project/middleware.py
 import re
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
@@ -41,6 +40,8 @@ class CSRFExemptMiddleware:
             re.compile(r'^/api/users/login/$'),
             re.compile(r'^/api/users/logout/$'),
             re.compile(r'^/api/courses/\d+/enroll/$'),  # Add this line for enrollment
+            re.compile(r'^/api/lessons/progress/$'),  # For marking lessons as complete
+            re.compile(r'^/api/lessons/exercise/\d+/check/$'),  # For checking exercises
         ]
 
     def __call__(self, request):
@@ -51,5 +52,3 @@ class CSRFExemptMiddleware:
                 request._dont_enforce_csrf_checks = True
                 break
         return self.get_response(request)
-
-

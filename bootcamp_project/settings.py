@@ -56,11 +56,11 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    'bootcamp_project.middleware.CSRFExemptMiddleware', 
+    'bootcamp_project.middleware.CSRFExemptMiddleware',  # This should come after CsrfViewMiddleware
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'bootcamp_project.middleware.TokenAuthMiddleware',  # Add this line
+    'bootcamp_project.middleware.TokenAuthMiddleware',  # This comes after AuthenticationMiddleware
 ]
 
 ROOT_URLCONF = 'bootcamp_project.urls'
@@ -128,10 +128,10 @@ AUTH_PASSWORD_VALIDATORS = [
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
-        'rest_framework.authentication.TokenAuthentication',  # Add token authentication
+        'rest_framework.authentication.TokenAuthentication',  # Make sure token auth is enabled
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.AllowAny',  # This will allow unauthenticated access by default
+        'rest_framework.permissions.AllowAny',  # Change this to AllowAny for testing
     ],
 }
 # Internationalization

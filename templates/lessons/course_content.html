@@ -39,6 +39,11 @@
                                         <span class="completion-badge">✓</span>
                                     {% endif %}
                                 </a>
+                                {% if lesson.id in user_progress %}
+                                    <div class="lesson-progress-indicator completed" title="Completed!"></div>
+                                {% else %}
+                                    <div class="lesson-progress-indicator" title="Not completed yet"></div>
+                                {% endif %}
                             </li>
                         {% empty %}
                             <li class="no-lessons">No lessons available yet</li>
@@ -78,16 +83,231 @@
                         </div>
                     </div>
                 </div>
+                
+                <div class="course-stats">
+                    <div class="stat-item">
+                        <h4>Total Lessons</h4>
+                        <span class="stat-value">{{ total_lessons }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <h4>Your Progress</h4>
+                        <span class="stat-value">{{ completed_lessons }} / {{ total_lessons }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <h4>Estimated Time</h4>
+                        <span class="stat-value">{{ estimated_hours|default:"5" }} hours</span>
+                    </div>
+                </div>
             </div>
             
             <div class="course-cta">
                 {% if modules.0.lessons.all.0 %}
-                    <a href="{% url 'lesson-detail' modules.0.lessons.all.0.id %}" class="btn">Start Learning</a>
+                    {% if first_incomplete_lesson %}
+                        <a href="{% url 'lesson-detail' first_incomplete_lesson.id %}" class="btn btn-primary">Continue Learning</a>
+                    {% else %}
+                        <a href="{% url 'lesson-detail' modules.0.lessons.all.0.id %}" class="btn">Start Learning</a>
+                    {% endif %}
                 {% else %}
                     <p>No lessons available yet. Check back soon!</p>
+                {% endif %}
+                
+                {% if progress_percentage == 100 %}
+                    <div class="course-completed-badge">
+                        <span class="checkmark">✓</span> Course Completed!
+                    </div>
+                    
+                    <div class="next-steps">
+                        <h3>What's Next?</h3>
+                        <p>Congratulations on completing this course! Here are some suggestions for what to do next:</p>
+                        <ul>
+                            <li><a href="{% url 'dashboard' %}">Browse more courses from your dashboard</a></li>
+                            <li><a href="{% url 'course-list' %}">Explore advanced JavaScript courses</a></li>
+                            <li><a href="{% url 'lesson-detail' first_lesson.id %}">Review the course content again</a></li>
+                        </ul>
+                    </div>
                 {% endif %}
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add click handlers for module headers to expand/collapse
+    document.querySelectorAll('.module-header').forEach(header => {
+        header.addEventListener('click', function() {
+            const moduleItem = this.parentNode;
+            const lessonsList = moduleItem.querySelector('.lessons-list');
+            
+            // Toggle lessons list visibility
+            if (lessonsList.style.display === 'none') {
+                lessonsList.style.display = 'block';
+                this.classList.add('expanded');
+            } else {
+                lessonsList.style.display = 'none';
+                this.classList.remove('expanded');
+            }
+        });
+    });
+    
+    // Auto-scroll to first incomplete lesson if exists
+    const firstIncompleteLessonItem = document.querySelector('.lesson-item:not(.completed)');
+    if (firstIncompleteLessonItem) {
+        // Ensure its module is expanded
+        const moduleItem = firstIncompleteLessonItem.closest('.module-item');
+        const lessonsList = moduleItem.querySelector('.lessons-list');
+        const moduleHeader = moduleItem.querySelector('.module-header');
+        
+        if (lessonsList.style.display === 'none') {
+            lessonsList.style.display = 'block';
+            moduleHeader.classList.add('expanded');
+        }
+        
+        // Highlight the first incomplete lesson
+        firstIncompleteLessonItem.classList.add('next-lesson');
+        
+        // Scroll to it with a slight delay to ensure DOM is ready
+        setTimeout(() => {
+            firstIncompleteLessonItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+    }
+    
+    // Handle continue learning button
+    const continueButton = document.querySelector('.course-cta .btn-primary');
+    if (continueButton) {
+        continueButton.addEventListener('click', function(e) {
+            // Add a subtle loading animation when clicked
+            this.innerHTML = '<span class="loading-dots">Loading</span>';
+            this.classList.add('loading');
+            
+            // The actual navigation happens automatically via the href
+        });
+    }
+});
+</script>
+
+<style>
+/* Additional styles beyond what's in the learning.css file */
+
+.module-header {
+    cursor: pointer;
+    position: relative;
+}
+
+.module-header:after {
+    content: "▼";
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.8em;
+    opacity: 0.7;
+    transition: transform 0.3s;
+}
+
+.module-header.expanded:after {
+    transform: translateY(-50%) rotate(180deg);
+}
+
+.lesson-progress-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #ddd;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.lesson-progress-indicator.completed {
+    background-color: #28a745;
+}
+
+.lesson-item {
+    position: relative;
+}
+
+.lesson-item.next-lesson {
+    background-color: rgba(52, 152, 219, 0.1);
+    border-left: 3px solid #3498db;
+}
+
+.course-completed-badge {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 10px 15px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    margin: 20px 0;
+    font-weight: bold;
+}
+
+.checkmark {
+    font-size: 20px;
+    margin-right: 10px;
+    color: #28a745;
+}
+
+.next-steps {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 4px;
+    margin-top: 20px;
+}
+
+.next-steps h3 {
+    margin-top: 0;
+    color: #3498db;
+}
+
+.next-steps ul {
+    margin-bottom: 0;
+}
+
+.course-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin: 20px 0;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-item h4 {
+    margin: 0 0 5px 0;
+    font-size: 0.9em;
+    color: #666;
+}
+
+.stat-value {
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #3498db;
+}
+
+.loading-dots:after {
+    content: "...";
+    animation: loadingDots 1.5s infinite;
+}
+
+@keyframes loadingDots {
+    0%, 20% { content: "."; }
+    40%, 60% { content: ".."; }
+    80%, 100% { content: "..."; }
+}
+
+.btn.loading {
+    pointer-events: none;
+    opacity: 0.8;
+}
+</style>
 {% endblock %}

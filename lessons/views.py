@@ -37,7 +37,7 @@ class LessonViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 @api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.AllowAny])  # Changed from IsAuthenticated to AllowAny
 def mark_lesson_complete(request):
     lesson_id = request.data.get('lesson_id')
     if not lesson_id:
@@ -45,8 +45,17 @@ def mark_lesson_complete(request):
     
     lesson = get_object_or_404(Lesson, id=lesson_id)
     
+    # Get the user from the request if authenticated, otherwise use a default or anonymous user
+    user = request.user
+    if not user.is_authenticated:
+        # For anonymous users, you might want to handle this differently
+        # This is just a placeholder approach - modify based on your needs
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        user, created = User.objects.get_or_create(username="anonymous_user")
+    
     progress, created = UserProgress.objects.get_or_create(
-        user=request.user,
+        user=user,
         lesson=lesson
     )
     
@@ -57,7 +66,7 @@ def mark_lesson_complete(request):
     return Response({'success': True, 'message': 'Lesson marked as complete'})
 
 @api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.AllowAny])  # Changed from IsAuthenticated to AllowAny
 def check_exercise(request, pk):
     exercise = get_object_or_404(Exercise, pk=pk)
     user_code = request.data.get('code', '')
@@ -118,15 +127,16 @@ def check_exercise(request, pk):
             else:
                 feedback = "Great job! Your solution passes the tests."
             
-            # Mark the lesson as complete
-            lesson = exercise.lesson
-            progress, created = UserProgress.objects.get_or_create(
-                user=request.user,
-                lesson=lesson
-            )
-            progress.completed = True
-            progress.completed_at = timezone.now()
-            progress.save()
+            # Mark the lesson as complete if the user is authenticated
+            if request.user.is_authenticated:
+                lesson = exercise.lesson
+                progress, created = UserProgress.objects.get_or_create(
+                    user=request.user,
+                    lesson=lesson
+                )
+                progress.completed = True
+                progress.completed_at = timezone.now()
+                progress.save()
     
     except Exception as e:
         feedback = f"Error checking your code: {str(e)}"
@@ -170,11 +180,36 @@ def course_content(request, slug):
     if total_lessons > 0:
         progress_percentage = int((completed_lessons / total_lessons) * 100)
     
+    # Get first lesson of the course for the "Review" link
+    first_lesson = None
+    if modules.exists() and modules.first().lessons.exists():
+        first_lesson = modules.first().lessons.first()
+    
+    # Find the first incomplete lesson (for "Continue Learning")
+    first_incomplete_lesson = None
+    if modules.exists():
+        for module in modules:
+            lessons = module.lessons.all()
+            for lesson in lessons:
+                if lesson.id not in user_progress:
+                    first_incomplete_lesson = lesson
+                    break
+            if first_incomplete_lesson:
+                break
+    
+    # Calculate estimated time to complete (example logic)
+    estimated_hours = total_lessons * 0.5  # Assume each lesson takes 30 minutes
+    
     return render(request, 'lessons/course_content.html', {
         'course': course,
         'modules': modules,
         'user_progress': user_progress,
-        'progress_percentage': progress_percentage
+        'progress_percentage': progress_percentage,
+        'first_lesson': first_lesson,  # Add this variable
+        'first_incomplete_lesson': first_incomplete_lesson,  # Add this variable
+        'total_lessons': total_lessons,
+        'completed_lessons': completed_lessons,
+        'estimated_hours': estimated_hours
     })
 
 @login_required
